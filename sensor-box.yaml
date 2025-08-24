@@ -1,4 +1,3 @@
-
 substitutions:
   devicename: "sensor-box"
   update_time: 30s
@@ -7,7 +6,9 @@ esphome:
   name: ${devicename}
   name_add_mac_suffix: true
   friendly_name: "Sensor Box"
-  # Re-apply restored number values to the LD1125H via UART on boot
+  project:
+    name: alphaars.sensor_box
+    version: "1.0.0"
   on_boot:
     priority: 800
     then:
