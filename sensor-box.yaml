@@ -1,3 +1,4 @@
+
 substitutions:
   devicename: "sensor-box"
   update_time: 30s
@@ -8,8 +9,8 @@ esphome:
   friendly_name: "Sensor Box"
 
   project:
-    name: alphaars.sensor_box
-    version: "1.0.0"
+    name: alphaars.sensor_box 
+    version: "1.0.0"   
 
   # Re-apply restored number values to the LD1125H via UART on boot
   on_boot:
@@ -18,22 +19,26 @@ esphome:
       - delay: 1s
       - number.set:
           id: LD1125H_mth1
-          value: !lambda "return id(LD1125H_mth1).state;"
+          value: !lambda 'return id(LD1125H_mth1).state;'
       - number.set:
           id: LD1125H_mth2
-          value: !lambda "return id(LD1125H_mth2).state;"
+          value: !lambda 'return id(LD1125H_mth2).state;'
       - number.set:
           id: LD1125H_mth3
-          value: !lambda "return id(LD1125H_mth3).state;"
+          value: !lambda 'return id(LD1125H_mth3).state;'
       - number.set:
           id: LD1125H_rmax
-          value: !lambda "return id(LD1125H_rmax).state;"
+          value: !lambda 'return id(LD1125H_rmax).state;'
       - number.set:
           id: LD1125H_Clear_Time
-          value: !lambda "return id(LD1125H_Clear_Time).state;"
+          value: !lambda 'return id(LD1125H_Clear_Time).state;'
       - number.set:
           id: LD1125H_Mov_Time
-          value: !lambda "return id(LD1125H_Mov_Time).state;"
+          value: !lambda 'return id(LD1125H_Mov_Time).state;'
+
+
+dashboard_import:
+  package_import_url: github://AlphaArs/sensor-box/sensor-box.yaml@main
 
 esp32:
   board: nodemcu-32s
@@ -88,15 +93,15 @@ globals:
   - id: LD1125H_Last_Time
     type: time_t
     restore_value: false
-    initial_value: "0"
+    initial_value: '0'
   - id: LD1125H_Last_Mov_Time
     type: time_t
     restore_value: false
-    initial_value: "0"
+    initial_value: '0'
   - id: LD1125H_Clearence_Status
     type: bool
     restore_value: false
-    initial_value: "false"
+    initial_value: 'false'
 
 status_led:
   pin:
