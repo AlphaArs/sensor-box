@@ -32,9 +32,6 @@ esphome:
           value: !lambda 'return id(LD1125H_Mov_Time).state;'
 
 
- dashboard_import:
-   package_import_url: github://AlphaArs/sensor-box/sensor-box.yaml
-
 esp32:
   board: nodemcu-32s
   framework:
