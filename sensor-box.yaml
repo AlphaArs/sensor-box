@@ -31,8 +31,6 @@ esphome:
       - number.set:
           id: LD1125H_Mov_Time
           value: !lambda 'return id(LD1125H_Mov_Time).state;'
-
-
 esp32:
   board: nodemcu-32s
   framework:
