@@ -242,7 +242,11 @@ sensor:
 
   - platform: bme680
     temperature:
+      id: bme_temp
       name: "Temperature"
+      device_class: temperature
+      state_class: measurement
+      unit_of_measurement: "°C"
     pressure:
       name: "Pressure"
     humidity:
@@ -254,13 +258,17 @@ sensor:
 
   - platform: pmsx003
     uart_id: pms_uart
-    type: PMSX003
+    type: PMS5003T      
     pm_1_0:
       name: "PM1.0"
     pm_2_5:
       name: "PM2.5"
     pm_10_0:
       name: "PM10"
+    temperature:
+      name: "PMS Temperature"
+    humidity:
+      name: "PMS Humidity"
 
   - platform: bh1750
     name: "Illuminance"
