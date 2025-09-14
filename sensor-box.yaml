@@ -375,11 +375,23 @@ text_sensor:
     on_value:
       lambda: |-
         const std::string &s = id(LD1125H_UART_Text).state;
-        const float d = atof(s.substr(9).c_str());
-        const float MIN_VALID_DIST = 0.05f; // ignore idle/zero
+
+        // Ignore empty, "null", or very short noise lines safely
+        if (s.empty() || s == "null" || s.size() < 4) return;
+
+        // Parse distance from "...dis=XX" or "...dist=XX"
+        float d = NAN;
+        size_t pos = s.find("dis=");
+        if (pos == std::string::npos) pos = s.find("dist=");
+        if (pos != std::string::npos) {
+          const char* p = s.c_str() + pos + (s[pos+3] == '=' ? 4 : 5); // after dis=/dist=
+          d = atof(p);
+        }
+
+        const float MIN_VALID_DIST = 0.05f; // treat <5cm as idle/invalid
 
         if (s.rfind("occ", 0) == 0) {
-          if (d >= MIN_VALID_DIST) {
+          if (!isnan(d) && d >= MIN_VALID_DIST) {
             id(LD1125H_Distance).publish_state(d);
           }
           if ((time(NULL) - id(LD1125H_Last_Mov_Time)) > id(LD1125H_Mov_Time).state) {
@@ -392,8 +404,9 @@ text_sensor:
           if (id(LD1125H_Clearence_Status) == true) id(LD1125H_Clearence_Status) = false;
 
         } else if (s.rfind("mov", 0) == 0) {
-          if (d < MIN_VALID_DIST) {
-            id(LD1125H_Last_Time) = time(NULL);
+          // Ignore bogus/idle movement lines (no distance or near zero)
+          if (isnan(d) || d < MIN_VALID_DIST) {
+            id(LD1125H_Last_Time) = time(NULL);  // keep timers sane
             return;
           }
           id(LD1125H_Distance).publish_state(d);
@@ -404,6 +417,7 @@ text_sensor:
           id(LD1125H_Last_Time) = time(NULL);
           if (id(LD1125H_Clearence_Status) == true) id(LD1125H_Clearence_Status) = false;
         }
+
 
   - platform: template
     id: LD1125H_Occupancy
@@ -426,6 +440,5 @@ binary_sensor:
     id: LD1125H_Mov_Binary
     name: "Movement"
     device_class: motion
-
 
 
