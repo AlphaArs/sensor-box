@@ -393,6 +393,7 @@ text_sensor:
 
         } else if (s.rfind("mov", 0) == 0) {
           if (d < MIN_VALID_DIST) {
+          
             // update "last seen" so clearance/idle timers work, but don't flag movement
             id(LD1125H_Last_Time) = time(NULL);
             return;
