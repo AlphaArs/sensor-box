@@ -1,8 +1,31 @@
+# ------------------------------------------------------------
+# Sensor Box (ESPHome) — Organized Layout
+# ------------------------------------------------------------
+# Index:
+#   1) Substitutions
+#   2) Core / Project
+#   3) OTA / API / Wi-Fi
+#   4) Buses & External Components
+#   5) UART Buses
+#   6) Globals (runtime state)
+#   7) Outputs & Switches (Status LED)
+#   8) Runtime Logic (Interval timers)
+#   9) Numbers (tunable settings)
+#  10) Sensors
+#  11) Text Sensors (UART parser)
+#  12) Binary Sensors
+# ------------------------------------------------------------
 
+# ========================
+# 1) Substitutions
+# ========================
 substitutions:
   devicename: "sensor-box"
   update_time: 30s
 
+# ========================
+# 2) Core / Project
+# ========================
 esphome:
   name: ${devicename}
   name_add_mac_suffix: true
@@ -10,7 +33,7 @@ esphome:
 
   project:
     name: alphaars.sensor_box 
-    version: "1.0.0"   
+    version: "1.1.0"   
 
   # Re-apply restored number values to the LD1125H via UART on boot
   on_boot:
@@ -36,7 +59,6 @@ esphome:
           id: LD1125H_Mov_Time
           value: !lambda 'return id(LD1125H_Mov_Time).state;'
 
-
 dashboard_import:
   package_import_url: github://AlphaArs/sensor-box/sensor-box.yaml@main
 
@@ -47,6 +69,9 @@ esp32:
 
 logger:
 
+# ========================
+# 3) OTA / API / Wi-Fi
+# ========================
 api:
   encryption:
     key: !secret api_encryption_key
@@ -64,6 +89,9 @@ wifi:
 
 captive_portal:
 
+# ========================
+# 4) Buses & External Components
+# ========================
 i2c:
   sda: 21
   scl: 22
@@ -76,6 +104,9 @@ external_components:
     components:
       - serial
 
+# ========================
+# 5) UART Buses
+# ========================
 # UARTs for LD1125H and PMS7003T sensors
 uart:
   - id: LD1125H_UART_BUS
@@ -89,6 +120,9 @@ uart:
     rx_pin: GPIO4
     baud_rate: 9600
 
+# ========================
+# 6) Globals (runtime state)
+# ========================
 globals:
   - id: LD1125H_Last_Time
     type: time_t
@@ -103,31 +137,72 @@ globals:
     restore_value: false
     initial_value: 'false'
 
-status_led:
-  pin:
-    number: GPIO2
-    inverted: false
+# ========================
+# 7) Outputs & Switches (Status LED)
+# ========================
+output:
+  - platform: gpio
+    id: status_led_output
+    pin:
+      number: GPIO2
+      inverted: false
 
+switch:
+  - platform: output
+    id: status_led_switch
+    name: "Status LED"
+    icon: mdi:led-on
+    output: status_led_output
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# ========================
+# 8) Runtime Logic (Interval timers)
+# ========================
 interval:
   - interval: 1s
     setup_priority: -200
     then:
       lambda: |-
-        if ((time(NULL) - id(LD1125H_Last_Time)) > id(LD1125H_Clear_Time).state) {
+        const float clear_s = id(LD1125H_Clear_Time).state;
+        const float idle_s  = id(LD1125H_Idle_Time).state;
+        const time_t elapsed = time(NULL) - id(LD1125H_Last_Time);
+
+        if (elapsed > idle_s) {
+          // Long idle → show Idle and ensure binaries are off
+          if (id(LD1125H_Occupancy).state != "Idle") {
+            id(LD1125H_Occupancy).publish_state("Idle");
+          }
+          if (id(LD1125H_MovOcc_Binary).state == true) id(LD1125H_MovOcc_Binary).publish_state(false);
+          if (id(LD1125H_Mov_Binary).state   == true) id(LD1125H_Mov_Binary).publish_state(false);
+          id(LD1125H_Clearence_Status) = true;
+
+        } else if (elapsed > clear_s) {
+          // Short quiet period → show Clearance
           if ((id(LD1125H_Clearence_Status) == false) || (id(LD1125H_Occupancy).state != "Clearance")) {
             id(LD1125H_Occupancy).publish_state("Clearance");
             id(LD1125H_Clearence_Status) = true;
           }
-          if (id(LD1125H_MovOcc_Binary).state == true) {
-            id(LD1125H_MovOcc_Binary).publish_state(false);
-          }
-          if (id(LD1125H_Mov_Binary).state == true) {
-            id(LD1125H_Mov_Binary).publish_state(false);
-          }
+          if (id(LD1125H_MovOcc_Binary).state == true) id(LD1125H_MovOcc_Binary).publish_state(false);
+          if (id(LD1125H_Mov_Binary).state   == true) id(LD1125H_Mov_Binary).publish_state(false);
         }
 
-# ---------- Clean, short entity names ----------
+# ------------------------------------------------------------
+# 9) Numbers (tunable settings)
+# ------------------------------------------------------------
+# 9.1) Idle/Clear/Movement timings
 number:
+  - platform: template
+    id: LD1125H_Idle_Time
+    name: "Idle After (s)"
+    icon: mdi:sleep
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 60
+    min_value: 5
+    max_value: 3600
+    step: 5
+
   - platform: template
     id: LD1125H_mth1
     name: "Motion Threshold 1"
@@ -224,6 +299,9 @@ number:
     max_value: 10
     step: 0.5
 
+# ========================
+# 10) Sensors
+# ========================
 sensor:
   - platform: uptime
     name: "Uptime"
@@ -231,10 +309,10 @@ sensor:
   - platform: template
     id: LD1125H_Distance
     name: "Distance"
-    icon: mdi:signal-distance-variant
     unit_of_measurement: "m"
     accuracy_decimals: 2
     filters:
+      - filter_out: 0.0
       - sliding_window_moving_average:
           window_size: 8
           send_every: 2
@@ -284,6 +362,9 @@ sensor:
     filters:
       - multiply: 3.3
 
+# ========================
+# 11) Text Sensors (UART parser)
+# ========================
 text_sensor:
   - platform: serial
     uart_id: LD1125H_UART_BUS
@@ -293,21 +374,33 @@ text_sensor:
     internal: true
     on_value:
       lambda: |-
-        if (id(LD1125H_UART_Text).state.substr(0, 3) == "occ") {
-          id(LD1125H_Distance).publish_state(atof(id(LD1125H_UART_Text).state.substr(9).c_str()));
+        const std::string &s = id(LD1125H_UART_Text).state;
+        const float d = atof(s.substr(9).c_str());
+        const float MIN_VALID_DIST = 0.05f; // ignore idle/zero
+
+        if (s.rfind("occ", 0) == 0) {
+          if (d >= MIN_VALID_DIST) {
+            id(LD1125H_Distance).publish_state(d);
+          }
           if ((time(NULL) - id(LD1125H_Last_Mov_Time)) > id(LD1125H_Mov_Time).state) {
             id(LD1125H_Occupancy).publish_state("Occupancy");
-            if (id(LD1125H_MovOcc_Binary).state == false) id(LD1125H_MovOcc_Binary).publish_state(true);
-            if (id(LD1125H_Mov_Binary).state   == true)   id(LD1125H_Mov_Binary).publish_state(false);
+            if (!id(LD1125H_MovOcc_Binary).state) id(LD1125H_MovOcc_Binary).publish_state(true);
+            if (id(LD1125H_Mov_Binary).state)     id(LD1125H_Mov_Binary).publish_state(false);
           }
-          if (id(LD1125H_MovOcc_Binary).state == false) id(LD1125H_MovOcc_Binary).publish_state(true);
+          if (!id(LD1125H_MovOcc_Binary).state) id(LD1125H_MovOcc_Binary).publish_state(true);
           id(LD1125H_Last_Time) = time(NULL);
           if (id(LD1125H_Clearence_Status) == true) id(LD1125H_Clearence_Status) = false;
-        } else if (id(LD1125H_UART_Text).state.substr(0, 3) == "mov") {
-          id(LD1125H_Distance).publish_state(atof(id(LD1125H_UART_Text).state.substr(9).c_str()));
+
+        } else if (s.rfind("mov", 0) == 0) {
+          if (d < MIN_VALID_DIST) {
+            # update "last seen" so clearance/idle timers work, but don't flag movement
+            id(LD1125H_Last_Time) = time(NULL);
+            return;
+          }
+          id(LD1125H_Distance).publish_state(d);
           id(LD1125H_Occupancy).publish_state("Movement");
-          if (id(LD1125H_MovOcc_Binary).state == false) id(LD1125H_MovOcc_Binary).publish_state(true);
-          if (id(LD1125H_Mov_Binary).state   == false)  id(LD1125H_Mov_Binary).publish_state(true);
+          if (!id(LD1125H_MovOcc_Binary).state) id(LD1125H_MovOcc_Binary).publish_state(true);
+          if (!id(LD1125H_Mov_Binary).state)    id(LD1125H_Mov_Binary).publish_state(true);
           id(LD1125H_Last_Mov_Time) = time(NULL);
           id(LD1125H_Last_Time) = time(NULL);
           if (id(LD1125H_Clearence_Status) == true) id(LD1125H_Clearence_Status) = false;
@@ -318,6 +411,9 @@ text_sensor:
     name: "Occupancy"
     icon: mdi:motion-sensor
 
+# ========================
+# 12) Binary Sensors
+# ========================
 binary_sensor:
   - platform: status
     name: "Status"
