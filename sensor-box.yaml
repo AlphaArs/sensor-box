@@ -33,7 +33,7 @@ esphome:
 
   project:
     name: alphaars.sensor_box 
-    version: "1.1.0"   
+    version: "1.1.1"   
 
   # Re-apply restored number values to the LD1125H via UART on boot
   on_boot:
@@ -428,3 +428,4 @@ binary_sensor:
     id: LD1125H_Mov_Binary
     name: "Movement"
     device_class: motion
+
